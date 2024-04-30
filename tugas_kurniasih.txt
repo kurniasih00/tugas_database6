@@ -1,0 +1,505 @@
+Stored Procedures, Stored Functions dan Trigger
+Worksheet 6
+
+Nama	: Kurniasih
+
+SOAL 6.1
+1.	Buatlah Procedure untuk mengupdate harga_jual berdasarkan jenis produk tertentu (jenis_produk_id), 
+beri nama procedure pro_naikan_harga memiliki parameter yang akan menerima argumen: 
+Jenis Produk ID dan Persentase kenaikan harga.
+MariaDB [dbpos_sib6]> DELIMITER $$
+MariaDB [dbpos_sib6]> CREATE PROCEDURE pro_naik(
+    -> IN jenis_produk INT,
+    -> IN persentasi_kenaikan INT)
+    -> BEGIN
+    -> UPDATE produk SET harga_jual = harga_jual + (harga_jual * persentasi_kenaikan / 100)
+    -> WHERE jenis_produk_id = jenis_produk;
+    -> END $$
+Query OK, 0 rows affected (0.038 sec)
+
+MariaDB [dbpos_sib6]> DELIMITER ;
+MariaDB [dbpos_sib6]> CALL pro_naik(1,4);
+Query OK, 16 rows affected (0.060 sec)
+
+MariaDB [dbpos_sib6]> SELECT nama, harga_jual, jenis_produk_id F
+ROM produk;
++-------------------+------------+-----------------+
+| nama              | harga_jual | jenis_produk_id |
++-------------------+------------+-----------------+
+| Televisi 21 inchs |   52520000 |               1 |
+| Televisi 40 inch  |    7737600 |               1 |
+| Kulkas 2 pintu    |    4867200 |               1 |
+| Meja Makan        |     600000 |               2 |
+| Teh Kotak         |       3500 |               4 |
+| PC Desktop HP     |    9984000 |               5 |
+| Teh Botol         |       2500 |               4 |
+| Notebook Acer S   |   11232000 |               5 |
+| Notebook Lenovo   |   12480000 |               5 |
+| Laptop Lenovo     |   16640000 |               1 |
+| Kopi              |      30000 |               4 |
+| Teh Sosro 2       |      15600 |               1 |
+| Laptop Asus       |    5200000 |               1 |
+| Televisi 22 inc`  |   52520000 |               1 |
+| Televisi 23 inc   |   52520000 |               1 |
+| Televisi 24 inc   |   52520000 |               1 |
+| Televisi 25 inc   |   52520000 |               1 |
+| Televisi 27 inc   |   52520000 |               1 |
+| Televisi 28 inc   |   52520000 |               1 |
+| Televisi 29 inc   |   52520000 |               1 |
+| Teh Pucuk         |       5000 |               4 |
+| Teh Pucuk2        |       5000 |               4 |
+| headset           |     208000 |               1 |
+| hair dryer        |     156000 |               1 |
+| Tissue Baru       |      31200 |               1 |
++-------------------+------------+-----------------+
+25 rows in set (0.016 sec)
+
+2.	Buat fungsi umur dengan parameter yang menerima inputan argumen tipe data date dan mengembalikan hasil 
+perhitungan umur (tahun sekarang dikurang tahun inputan) dengan tipe data bilangan bulat (integer) positif.
+MariaDB [dbpos_sib6]> DELIMITER $$
+MariaDB [dbpos_sib6]> CREATE FUNCTION umur(tgl_lahir DATE)
+    -> RETURNS INT
+    -> BEGIN
+    -> DECLARE umur INT;
+    -> SET umur = YEAR(CURDATE()) - YEAR(tgl_lahir);
+    -> RETURN umur;
+    -> END $$
+Query OK, 0 rows affected (0.027 sec)
+
+MariaDB [dbpos_sib6]> DELIMITER ;
+MariaDB [dbpos_sib6]> SELECT nama, umur(tgl_lahir) AS umur FROM
+pelanggan;
++--------------------+------+
+| nama               | umur |
++--------------------+------+
+| Agung Sedayu Group |   14 |
+| Pandan Wangi       |   74 |
+| Sekar Mirah        |   41 |
+| Swandaru Geni      |   43 |
+| Pradabashu         |   39 |
+| Gayatri Dwi        |   37 |
+| Dewi Gyat          |   36 |
+| Andre Haru         |   34 |
+| Ahmad Hasan        |   32 |
+| Cassanndra         |   34 |
+| Andi Wijaya        |    1 |
+| Ira                |    1 |
++--------------------+------+
+12 rows in set (0.026 sec)
+
+3.	Buat fungsi kategori_harga dengan parameter yang menerima inputan argument tipe data double dan mengembalikan tipe data string kategori harga berdasarkan: 
+●	0 – 500rb : murah
+●	500rb – 3 juta : sedang
+●	3jt – 10 juta : mahal 
+●	> 10 juta : sangat mahal
+MariaDB [dbpos_sib6]> DELIMITER $$
+MariaDB [dbpos_sib6]> CREATE FUNCTION kategori_harga(harga DOUBLE)
+    -> RETURNS VARCHAR(20)
+    -> BEGIN
+    -> DECLARE kategori VARCHAR(20);
+    -> IF harga <= 500000 THEN
+    -> SET kategori = 'murah';
+    -> ELSEIF harga <= 3000000 THEN
+    -> SET kategori = 'sedang';
+    ->  ELSEIF harga <= 10000000 THEN
+    -> SET kategori = 'mahal';
+    ->  ELSE
+    -> SET kategori = 'sangat mahal';
+    -> END IF;
+    -> RETURN kategori;
+    -> END $$
+Query OK, 0 rows affected (0.021 sec)
+
+MariaDB [dbpos_sib6]> DELIMITER ;
+MariaDB [dbpos_sib6]> SELECT kategori_harga(500000) AS kategori;
+
++----------+
+| kategori |
++----------+
+| murah    |
++----------+
+1 row in set (0.010 sec)
+
+
+Soal 6.2
+1.	Buatlah bisnis proses pembayaran dengan menggunakan trigers, dengan skenario sebagai berikut :
+- pelanggan memesan didalam table pesanan 
+- dilanjutkan dengan proses pembayaran di table pembayaran
+- didalam table pembayaran tambahkan kolom status_pembayaran
+- jika pesanan sudah dibayar maka status pembayaran akan berubah menjadi lunas
+MariaDB [dbpos_sib6]> DELIMITER $$
+MariaDB [dbpos_sib6]> CREATE TRIGGER after_pesanan_insert
+    -> AFTER INSERT ON pesanan
+    -> FOR EACH ROW
+    -> BEGIN
+    -> INSERT INTO pembayaran (pesanan_id, status_pembayaran)
+    -> VALUES (NEW.id, 'Belum Lunas');
+    -> END $$
+Query OK, 0 rows affected (0.016 sec)
+
+MariaDB [dbpos_sib6]> CREATE TRIGGER after_pembayaran_insert
+    -> AFTER INSERT ON pembayaran
+    -> FOR EACH ROW
+    -> BEGIN
+    -> DECLARE total_pembayaran DECIMAL(10, 2);
+    -> DECLARE total_pesanan DECIMAL(10, 2);
+    -> SELECT SUM(jumlah) INTO total_pembayaran FROM pembayaran WHERE pesanan_id = NEW.pesanan_id;
+    -> SELECT total_harga INTO total_pesanan FROM pesanan WHERE id = NEW.pesanan_id;
+    -> IF total_pembayaran >= total_pesanan THEN
+    -> UPDATE pembayaran SET status_pembayaran = 'Lunas' WHERE pesanan_id = NEW.pesanan_id;
+    -> END IF;
+    -> END $$
+Query OK, 0 rows affected (0.022 sec)
+
+MariaDB [dbpos_sib6]> DELIMITER ;
+
+2.	Buatlah Stored Procedure dengan nama kurangi_stok untuk mengurangi stok produk. 
+Stok berkurang sesuai dengan jumlah pesanan produk.
+MariaDB [dbpos_sib6]> DELIMITER $$
+MariaDB [dbpos_sib6]> CREATE PROCEDURE kurangi_stok(IN produk_id INT, IN jumlah INT)
+    -> BEGIN
+    -> UPDATE produk SET stok = stok - jumlah WHERE id = produk_id;
+    -> END $$
+Query OK, 0 rows affected (0.013 sec)
+
+MariaDB [dbpos_sib6]> DELIMITER ;
+MariaDB [dbpos_sib6]> SELECT kode,nama,stok,min_stok,jenis_produk_id FROM produk;
++--------+-------------------+------+----------+-----------------+
+| kode   | nama              | stok | min_stok | jenis_produk_id |
++--------+-------------------+------+----------+-----------------+
+| TV01   | Televisi 21 inchs |    5 |        2 |               1 |
+| TV02   | Televisi 40 inch  |    4 |        2 |               1 |
+| K001   | Kulkas 2 pintu    |    6 |        2 |               1 |
+| M001   | Meja Makan        |    4 |        3 |               2 |
+| TK01   | Teh Kotak         |    6 |       10 |               4 |
+| PC01   | PC Desktop HP     |    9 |        2 |               5 |
+| TB01   | Teh Botol         |   53 |       10 |               4 |
+| AC01   | Notebook Acer S   |    7 |        2 |               5 |
+| LN01   | Notebook Lenovo   |    9 |        2 |               5 |
+| L005   | Laptop Lenovo     |    5 |        2 |               1 |
+| L112   | Kopi              |   10 |       15 |               4 |
+| L113   | Teh Sosro 2       |   10 |       12 |               1 |
+| L0015  | Laptop Asus       |   10 |       20 |               1 |
+| TV0115 | Televisi 22 inc`  |    5 |        2 |               1 |
+| TV0116 | Televisi 23 inc   |    5 |        2 |               1 |
+| TV0117 | Televisi 24 inc   |    5 |        2 |               1 |
+| TV0118 | Televisi 25 inc   |    5 |        2 |               1 |
+| TV0120 | Televisi 27 inc   |    5 |        2 |               1 |
+| TV0121 | Televisi 28 inc   |    5 |        2 |               1 |
+| TV0122 | Televisi 29 inc   |    5 |        2 |               1 |
+| THP001 | Teh Pucuk         |   10 |        2 |               4 |
+| THP002 | Teh Pucuk2        |   10 |        2 |               4 |
+| HDS007 | headset           |   15 |        3 |               1 |
+| HRD001 | hair dryer        |   10 |        2 |               1 |
+| TSS005 | Tissue Baru       |   25 |        5 |               1 |
++--------+-------------------+------+----------+-----------------+
+25 rows in set (0.003 sec)
+
+MariaDB [dbpos_sib6]> CALL kurangi_stok(13, 4);
+Query OK, 0 rows affected (0.007 sec)
+
+MariaDB [dbpos_sib6]> SELECT kode,nama,stok,min_stok,jenis_produk_id FROM produk;
++--------+-------------------+------+----------+-----------------+
+| kode   | nama              | stok | min_stok | jenis_produk_id |
++--------+-------------------+------+----------+-----------------+
+| TV01   | Televisi 21 inchs |    5 |        2 |               1 |
+| TV02   | Televisi 40 inch  |    4 |        2 |               1 |
+| K001   | Kulkas 2 pintu    |    6 |        2 |               1 |
+| M001   | Meja Makan        |    4 |        3 |               2 |
+| TK01   | Teh Kotak         |    6 |       10 |               4 |
+| PC01   | PC Desktop HP     |    9 |        2 |               5 |
+| TB01   | Teh Botol         |   53 |       10 |               4 |
+| AC01   | Notebook Acer S   |    7 |        2 |               5 |
+| LN01   | Notebook Lenovo   |    9 |        2 |               5 |
+| L005   | Laptop Lenovo     |    5 |        2 |               1 |
+| L112   | Kopi              |   10 |       15 |               4 |
+| L113   | Teh Sosro 2       |   10 |       12 |               1 |
+| L0015  | Laptop Asus       |   10 |       20 |               1 |
+| TV0115 | Televisi 22 inc`  |    5 |        2 |               1 |
+| TV0116 | Televisi 23 inc   |    5 |        2 |               1 |
+| TV0117 | Televisi 24 inc   |    5 |        2 |               1 |
+| TV0118 | Televisi 25 inc   |    5 |        2 |               1 |
+| TV0120 | Televisi 27 inc   |    5 |        2 |               1 |
+| TV0121 | Televisi 28 inc   |    5 |        2 |               1 |
+| TV0122 | Televisi 29 inc   |    5 |        2 |               1 |
+| THP001 | Teh Pucuk         |   10 |        2 |               4 |
+| THP002 | Teh Pucuk2        |   10 |        2 |               4 |
+| HDS007 | headset           |   15 |        3 |               1 |
+| HRD001 | hair dryer        |   10 |        2 |               1 |
+| TSS005 | Tissue Baru       |   25 |        5 |               1 |
++--------+-------------------+------+----------+-----------------+
+25 rows in set (0.002 sec)
+
+3.	Buatlah Trigger dengan nama trig_kurangi_stok yang akan mengurangi stok produk jika 
+terjadi transaksi pesanan oleh pelanggan (memanggil stored procedure kurangi_stok soal no 1).
+Trigger ini aktif setelah trigger after_pesanan_items_insert (trigger pada contoh 3).
+MariaDB [dbpos_sib6]> DELIMITER $$
+MariaDB [dbpos_sib6]> CREATE TRIGGER trig_kurangi_stok
+    -> AFTER INSERT ON pesanan_items
+    -> FOR EACH ROW
+    -> BEGIN
+    -> DECLARE produk_id INT;
+    -> DECLARE qty INT;
+    -> SELECT produk_id, qty INTO produk_id, qty FROM pesanan_items WHERE id = NEW.id;
+    -> CALL kurangi_stok(produk_id, qty);
+    -> END $$
+Query OK, 0 rows affected (0.027 sec)
+
+MariaDB [dbpos_sib6]> DELIMITER ;
+MariaDB [dbpos_sib6]> SELECT * FROM pesanan_items;
++----+-----------+------------+------+---------+
+| id | produk_id | pesanan_id | qty  | harga   |
++----+-----------+------------+------+---------+
+|  1 |         1 |          1 |    1 | 5040000 |
+|  2 |         3 |          1 |    1 | 4680000 |
+|  3 |         5 |          2 |    5 |    3500 |
+|  6 |         5 |          3 |   10 |    3500 |
+|  7 |         1 |          3 |    1 | 5040000 |
+|  9 |         5 |          5 |   10 |    3500 |
+| 10 |         5 |          6 |   20 |    3500 |
++----+-----------+------------+------+---------+
+7 rows in set (0.007 sec)
+
+MariaDB [dbpos_sib6]> SELECT * FROM produk;
++----+--------+-------------------+------------+------------+------+----------+------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------+
+| id | kode   | nama              | harga_beli | harga_jual | stok | min_stok | foto                   | deskripsi
+
+
+                                                             | jenis_produk_id |
++----+--------+-------------------+------------+------------+------+----------+------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------+
+|  1 | TV01   | Televisi 21 inchs |    3500000 |   52520000 |    5 |        2 |                        | NULL
+
+
+                                                             |               1 |
+|  2 | TV02   | Televisi 40 inch  |    5500000 |    7737600 |    4 |        2 | NULL                   | NULL
+
+
+                                                             |               1 |
+|  3 | K001   | Kulkas 2 pintu    |    3500000 |    4867200 |    6 |        2 |                        | NULL
+
+
+                                                             |               1 |
+|  4 | M001   | Meja Makan        |     500000 |     600000 |    4 |        3 | NULL                   | NULL
+
+
+                                                             |               2 |
+|  5 | TK01   | Teh Kotak         |       3000 |       3500 |    6 |       10 | foto-5.png             | NULL
+
+
+                                                             |               4 |
+|  6 | PC01   | PC Desktop HP     |    7000000 |    9984000 |    9 |        2 | NULL                   | NULL
+
+
+                                                             |               5 |
+|  7 | TB01   | Teh Botol         |       2000 |       2500 |   53 |       10 | foto-7.jpg             | NULL
+
+
+                                                             |               4 |
+|  8 | AC01   | Notebook Acer S   |    8000000 |   11232000 |    7 |        2 | NULL                   | NULL
+
+
+                                                             |               5 |
+|  9 | LN01   | Notebook Lenovo   |    9000000 |   12480000 |    9 |        2 | NULL                   | NULL
+
+
+                                                             |               5 |
+| 11 | L005   | Laptop Lenovo     |   13000000 |   16640000 |    5 |        2 |                        | NULL
+
+
+                                                             |               1 |
+| 15 | L112   | Kopi              |      20000 |      30000 |   10 |       15 | foto-15.png            | Luwak White Coffee merupakan bubuk biji kopi luwak yang dikombinasikan dengan gurihnya krimer serta manisnya gula. Keharuman kopi serta rasa manisnya yang pas juga membuat popularitas Luwak White Coffee melejit. |               4 |
+| 16 | L113   | Teh Sosro 2       |      10000 |      15600 |   10 |       12 | .png                   | NULL
+
+
+                                                             |               1 |
+| 18 | L0015  | Laptop Asus       |    3000000 |    5200000 |   10 |       20 | foto-65542ffa66604.jpg | NULL
+
+
+                                                             |               1 |
+| 19 | TV0115 | Televisi 22 inc`  |    3500000 |   52520000 |    5 |        2 | NULL                   | NULL
+
+
+                                                             |               1 |
+| 20 | TV0116 | Televisi 23 inc   |    3500000 |   52520000 |    5 |        2 | NULL                   | NULL
+
+
+                                                             |               1 |
+| 21 | TV0117 | Televisi 24 inc   |    3500000 |   52520000 |    5 |        2 | NULL                   | NULL
+
+
+                                                             |               1 |
+| 22 | TV0118 | Televisi 25 inc   |    3500000 |   52520000 |    5 |        2 | NULL                   | NULL
+
+
+                                                             |               1 |
+| 24 | TV0120 | Televisi 27 inc   |    3500000 |   52520000 |    5 |        2 | NULL                   | NULL
+
+
+                                                             |               1 |
+| 25 | TV0121 | Televisi 28 inc   |    3500000 |   52520000 |    5 |        2 | NULL                   | NULL
+
+
+                                                             |               1 |
+| 26 | TV0122 | Televisi 29 inc   |    3500000 |   52520000 |    5 |        2 | NULL                   | NULL
+
+
+                                                             |               1 |
+| 27 | THP001 | Teh Pucuk         |       4000 |       5000 |   10 |        2 | pucuk.jpg              | Teh pucuk adalah
+
+                                                             |               4 |
+| 28 | THP002 | Teh Pucuk2        |       4000 |       5000 |   10 |        2 | pucuk.jpg              | Teh pucuk adalah
+
+                                                             |               4 |
+| 32 | HDS007 | headset           |     150000 |     208000 |   15 |        3 |                        |
+
+
+                                                             |               1 |
+| 33 | HRD001 | hair dryer        |     100000 |     156000 |   10 |        2 |                        |
+
+
+                                                             |               1 |
+| 34 | TSS005 | Tissue Baru       |      20000 |      31200 |   25 |        5 |                        |
+
+
+                                                             |               1 |
++----+--------+-------------------+------------+------------+------+----------+------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------+
+25 rows in set (0.001 sec)
+
+MariaDB [dbpos_sib6]> DELIMITER $$
+MariaDB [dbpos_sib6]> CREATE PROCEDURE kurangi_stokk(IN produk_id INT, IN qty INT)
+    -> BEGIN
+    -> UPDATE produk SET stok = stok - qty WHERE id = produk_id;
+
+    -> END $$
+Query OK, 0 rows affected (0.012 sec)
+
+MariaDB [dbpos_sib6]> DELIMITER ;
+MariaDB [dbpos_sib6]> CALL kurangi_stokk(13, 4);
+Query OK, 0 rows affected (0.002 sec)
+
+MariaDB [dbpos_sib6]> INSERT INTO pesanan_items (produk_id, pesanan_id, qty, harga) VALUES
+    -> (11, 3, 5, 10000);
+Query OK, 1 row affected (0.020 sec)
+
+MariaDB [dbpos_sib6]> SELECT * FROM pesanan_items;
++----+-----------+------------+------+---------+
+| id | produk_id | pesanan_id | qty  | harga   |
++----+-----------+------------+------+---------+
+|  1 |         1 |          1 |    1 | 5040000 |
+|  2 |         3 |          1 |    1 | 4680000 |
+|  3 |         5 |          2 |    5 |    3500 |
+|  6 |         5 |          3 |   10 |    3500 |
+|  7 |         1 |          3 |    1 | 5040000 |
+|  9 |         5 |          5 |   10 |    3500 |
+| 10 |         5 |          6 |   20 |    3500 |
+| 12 |        11 |          3 |    5 |   10000 |
++----+-----------+------------+------+---------+
+8 rows in set (0.001 sec)
+
+MariaDB [dbpos_sib6]> SELECT * FROM produk;
++----+--------+-------------------+------------+------------+------+----------+------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------+
+| id | kode   | nama              | harga_beli | harga_jual | stok | min_stok | foto                   | deskripsi
+
+
+                                                             | jenis_produk_id |
++----+--------+-------------------+------------+------------+------+----------+------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------+
+|  1 | TV01   | Televisi 21 inchs |    3500000 |   52520000 |    5 |        2 |                        | NULL
+
+
+                                                             |               1 |
+|  2 | TV02   | Televisi 40 inch  |    5500000 |    7737600 |    4 |        2 | NULL                   | NULL
+
+
+                                                             |               1 |
+|  3 | K001   | Kulkas 2 pintu    |    3500000 |    4867200 |    6 |        2 |                        | NULL
+
+
+                                                             |               1 |
+|  4 | M001   | Meja Makan        |     500000 |     600000 |    4 |        3 | NULL                   | NULL
+
+
+                                                             |               2 |
+|  5 | TK01   | Teh Kotak         |       3000 |       3500 |    6 |       10 | foto-5.png             | NULL
+
+
+                                                             |               4 |
+|  6 | PC01   | PC Desktop HP     |    7000000 |    9984000 |    9 |        2 | NULL                   | NULL
+
+
+                                                             |               5 |
+|  7 | TB01   | Teh Botol         |       2000 |       2500 |   53 |       10 | foto-7.jpg             | NULL
+
+
+                                                             |               4 |
+|  8 | AC01   | Notebook Acer S   |    8000000 |   11232000 |    7 |        2 | NULL                   | NULL
+
+
+                                                             |               5 |
+|  9 | LN01   | Notebook Lenovo   |    9000000 |   12480000 |    9 |        2 | NULL                   | NULL
+
+
+                                                             |               5 |
+| 11 | L005   | Laptop Lenovo     |   13000000 |   16640000 |    5 |        2 |                        | NULL
+
+
+                                                             |               1 |
+| 15 | L112   | Kopi              |      20000 |      30000 |   10 |       15 | foto-15.png            | Luwak White Coffee merupakan bubuk biji kopi luwak yang dikombinasikan dengan gurihnya krimer serta manisnya gula. Keharuman kopi serta rasa manisnya yang pas juga membuat popularitas Luwak White Coffee melejit. |               4 |
+| 16 | L113   | Teh Sosro 2       |      10000 |      15600 |   10 |       12 | .png                   | NULL
+
+
+                                                             |               1 |
+| 18 | L0015  | Laptop Asus       |    3000000 |    5200000 |   10 |       20 | foto-65542ffa66604.jpg | NULL
+
+
+                                                             |               1 |
+| 19 | TV0115 | Televisi 22 inc`  |    3500000 |   52520000 |    5 |        2 | NULL                   | NULL
+
+
+                                                             |               1 |
+| 20 | TV0116 | Televisi 23 inc   |    3500000 |   52520000 |    5 |        2 | NULL                   | NULL
+
+
+                                                             |               1 |
+| 21 | TV0117 | Televisi 24 inc   |    3500000 |   52520000 |    5 |        2 | NULL                   | NULL
+
+
+                                                             |               1 |
+| 22 | TV0118 | Televisi 25 inc   |    3500000 |   52520000 |    5 |        2 | NULL                   | NULL
+
+
+                                                             |               1 |
+| 24 | TV0120 | Televisi 27 inc   |    3500000 |   52520000 |    5 |        2 | NULL                   | NULL
+
+
+                                                             |               1 |
+| 25 | TV0121 | Televisi 28 inc   |    3500000 |   52520000 |    5 |        2 | NULL                   | NULL
+
+
+                                                             |               1 |
+| 26 | TV0122 | Televisi 29 inc   |    3500000 |   52520000 |    5 |        2 | NULL                   | NULL
+
+
+                                                             |               1 |
+| 27 | THP001 | Teh Pucuk         |       4000 |       5000 |   10 |        2 | pucuk.jpg              | Teh pucuk adalah
+
+                                                             |               4 |
+| 28 | THP002 | Teh Pucuk2        |       4000 |       5000 |   10 |        2 | pucuk.jpg              | Teh pucuk adalah
+
+                                                             |               4 |
+| 32 | HDS007 | headset           |     150000 |     208000 |   15 |        3 |                        |
+
+
+                                                             |               1 |
+| 33 | HRD001 | hair dryer        |     100000 |     156000 |   10 |        2 |                        |
+
+
+                                                             |               1 |
+| 34 | TSS005 | Tissue Baru       |      20000 |      31200 |   25 |        5 |                        |
+
+
+                                                             |               1 |
++----+--------+-------------------+------------+------------+------+----------+------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------+
+25 rows in set (0.002 sec)
+
+
+
